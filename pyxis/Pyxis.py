@@ -121,7 +121,6 @@ class Analysis:
 
 
 class Data:
-
     def __init__(self, df=None, file_path=None, parent=None, operation=None, history=False, index=None):
         self.plot = None
         self.parent = parent

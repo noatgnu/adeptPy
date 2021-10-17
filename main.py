@@ -12,7 +12,7 @@ import tornado.httpserver
 from tornado.ioloop import IOLoop
 from tornado.web import Application, StaticFileHandler, RequestHandler
 from tornado.options import define, options
-
+import numpy as np
 from pyxis.Pyxis import Analysis, Data
 
 define("port", default=8000, help="Port number")
@@ -65,13 +65,60 @@ class AnalysisWebSocket(WebSocketHandler):
             analysis_cache[data["id"]]["analysis"].experiments = experiments
             analysis_cache[data["id"]]["analysis"].data = Data(analysis_cache[data["id"]]["df"], history=True)
             self.write_message({"id": data["id"], "origin": "upload-starter", "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
-
-
+        elif data["message"] in ["Random Forest", "Left Censored Median", "Simple"]:
+            parameters = json_decode(data["data"])
+            if data["message"] == "Random Forest":
+                analysis_cache[data["id"]]["analysis"].data.impute_missing_forest(
+                    analysis_cache[data["id"]]["analysis"].experiments,
+                    analysis_cache[data["id"]]["analysis"].conditions,
+                    ">",
+                    parameters["# missing values/condition"]
+                )
+            elif data["message"] == "Left Censored Median":
+                analysis_cache[data["id"]]["analysis"].data.impute_lcm(
+                    analysis_cache[data["id"]]["analysis"].experiments,
+                    data["Down-shift"],
+                    data["Width"],
+                    analysis_cache[data["id"]]["analysis"].conditions,
+                    ">",
+                    parameters["# missing values/condition"]
+                )
+            elif data["message"] == "Simple":
+                analysis_cache[data["id"]]["analysis"].data.impute_missing(
+                    analysis_cache[data["id"]]["analysis"].experiments,
+                    analysis_cache[data["id"]]["analysis"].conditions,
+                    data["# missing values/condition"],
+                    data["# missing values/row"],
+                )
+            self.write_message({"id": data["id"], "origin": "imputation",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+        elif data["message"] == "Normalization":
+            if data["data"] == "Median":
+                analysis_cache[data["id"]]["analysis"].data.normalize(
+                    analysis_cache[data["id"]]["analysis"].experiments, method="median"
+                )
+            elif data["data"] == "Mean":
+                analysis_cache[data["id"]]["analysis"].data.normalize(
+                    analysis_cache[data["id"]]["analysis"].experiments, method="mean"
+                )
+            elif data["data"] == "Z-Score Row":
+                analysis_cache[data["id"]]["analysis"].data.normalize(
+                    analysis_cache[data["id"]]["analysis"].experiments, method="z-score"
+                )
+            elif data["data"] == "Z-Score Column":
+                analysis_cache[data["id"]]["analysis"].data.normalize(
+                    analysis_cache[data["id"]]["analysis"].experiments, method="z-score-col"
+                )
+            print(analysis_cache[data["id"]]["analysis"].data.current_df.median(axis=0))
+            assert len(np.unique(analysis_cache[data["id"]]["analysis"].data.current_df.median(axis=0))) == 1
+            self.write_message({"id": data["id"], "origin": "normalization",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
 
     def on_close(self):
         pass
 
     def check_origin(self, origin: str) -> bool:
+        print(origin)
         return True
 
 if __name__ == '__main__':
