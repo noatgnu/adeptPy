@@ -109,11 +109,25 @@ class AnalysisWebSocket(WebSocketHandler):
                 analysis_cache[data["id"]]["analysis"].data.normalize(
                     analysis_cache[data["id"]]["analysis"].experiments, method="z-score-col"
                 )
-            print(analysis_cache[data["id"]]["analysis"].data.current_df.median(axis=0))
-            assert len(np.unique(analysis_cache[data["id"]]["analysis"].data.current_df.median(axis=0))) == 1
             self.write_message({"id": data["id"], "origin": "normalization",
                                 "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
-
+        elif data["message"] == "TTest":
+            comparisons = json_decode(data["data"])
+            analysis_cache[data["id"]]["analysis"].data.two_sample(
+                [[c["A"], c["B"]] for c in comparisons],
+                False,
+                analysis_cache[data["id"]]["analysis"].conditions,
+                analysis_cache[data["id"]]["analysis"].experiments
+            )
+            self.write_message({"id": data["id"], "origin": "ttest",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+        elif data["message"] == "P-Correction":
+            analysis_cache[data["id"]]["analysis"].data.p_correct(
+                float(data["data"]),
+                "fdr_bh"
+            )
+            self.write_message({"id": data["id"], "origin": "p-correct",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
     def on_close(self):
         pass
 

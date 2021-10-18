@@ -379,23 +379,31 @@ class Data:
             a.initiate_history()
             return a
 
-    def two_sample(self, condition_1, condition_2, variance, conditions, experiments, branch=False):
-        condition_dict = {condition_1: [], condition_2: []}
-        exp = []
-        for c, e in zip(conditions, experiments):
-            if c in condition_dict:
-                condition_dict[c].append(e)
-                exp.append(e)
-        df = self.current_df[exp]
-        for i, r in df.iterrows():
-            a = r[condition_dict[condition_1]].dropna()
-            b = r[condition_dict[condition_2]].dropna()
-            res = ttest_ind(a=a, b=b, equal_var=variance)
-            df.at[i, "p-value"] = res[1]
+    def two_sample(self, comparisons, variance, conditions, experiments, branch=False):
+        condition_dict = {}
+        for c in comparisons:
+            condition_dict[f"{c[0]}-{c[1]}"] = {c[0]: [], c[1]: []}
 
-        df["FC"] = df[condition_dict[condition_1]].mean(axis=1) / df[condition_dict[condition_2]].mean(axis=1)
-        df["log2FC"] = np.log2(np.abs(df["FC"]))
-        operation = f"Performed two-sided T-test using data from {condition_1} and {condition_2}"
+        for c, e in zip(conditions, experiments):
+            for cd in condition_dict:
+                if c in condition_dict[cd]:
+                    condition_dict[cd][c].append(e)
+        result = []
+        for c in comparisons:
+            exp = condition_dict[f"{c[0]}-{c[1]}"][c[0]] + condition_dict[f"{c[0]}-{c[1]}"][c[1]]
+            df = self.current_df[exp]
+            for i, r in df.iterrows():
+                a = r[condition_dict[f"{c[0]}-{c[1]}"][c[0]]].dropna()
+                b = r[condition_dict[f"{c[0]}-{c[1]}"][c[1]]].dropna()
+                res = ttest_ind(a=a, b=b, equal_var=variance)
+                df.at[i, "p-value"] = res[1]
+
+            df["FC"] = df[condition_dict[f"{c[0]}-{c[1]}"][c[0]]].mean(axis=1) / df[condition_dict[f"{c[0]}-{c[1]}"][c[1]]].mean(axis=1)
+            df["log2FC"] = np.log2(np.abs(df["FC"]))
+            df["Comparison"] = f"{c[0]}-{c[1]}"
+            result.append(df.reset_index())
+        operation = f"Performed two-sided T-test"
+        df = pd.concat(result, ignore_index=True)
         a = Data(df=df, parent=self, operation=operation)
         self._move_time(a, df)
         if branch:
@@ -426,13 +434,25 @@ class Data:
 
     def p_correct(self, alpha, correction_method, branch=False):
         df = self.current_df
-        new_df = df.copy()
-        new_df = new_df[pd.notnull(new_df["p-value"])]
-        a = p_correct(new_df["p-value"].values, alpha, correction_method)
-        new_df["adj.p-value"] = pd.Series(a[1], index=new_df.index)
+        if "Comparisons" in df.columns:
+            result = []
+            for i, g in df.groupby("Comparisons"):
+                g = g[pd.notnull(g["p-value"])]
+                a = p_correct(g["p-value"].values, alpha, correction_method)
+                g["adj.p-value"] = pd.Series(a[1], index=g.index)
 
-        for i, r in new_df.iterrows():
-            df.at[i, "adj.p-value"] = r["adj.p-value"]
+                for i2, r in g.iterrows():
+                    g.at[i2, "adj.p-value"] = r["adj.p-value"]
+                result.append(g)
+            df = pd.concat(result, ignore_index=True)
+        else:
+            new_df = df.copy()
+            new_df = new_df[pd.notnull(new_df["p-value"])]
+            a = p_correct(new_df["p-value"].values, alpha, correction_method)
+            new_df["adj.p-value"] = pd.Series(a[1], index=new_df.index)
+
+            for i, r in new_df.iterrows():
+                df.at[i, "adj.p-value"] = r["adj.p-value"]
 
         operation = f"Performed multipletesting using {correction_method}"
         a = Data(df=df, parent=self, operation=operation)

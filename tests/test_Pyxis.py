@@ -142,7 +142,7 @@ class TestData(TestCase):
 
     def test_ttest(self):
         self.test_normalize_zscore()
-        self.da.two_sample("A", "B", False, self.conditions, [e.name for e in self.experiments])
+        self.da.two_sample([["A", "B"]], False, self.conditions, [e.name for e in self.experiments])
 
     def test_anova(self):
         self.test_normalize_zscore()
@@ -154,7 +154,7 @@ class TestData(TestCase):
 
     def test_volcano(self):
         self.test_normalize_zscore()
-        self.da.two_sample("A", "B", False, self.conditions, [e.name for e in self.experiments])
+        self.da.two_sample([["A", "B"]], False, self.conditions, [e.name for e in self.experiments])
         self.da.p_correct(0.05, "fdr_bh")
         self.da.volcano_plot(
             0.01, 0.5,
