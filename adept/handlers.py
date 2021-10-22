@@ -5,10 +5,9 @@ import pandas as pd
 from tornado.escape import json_decode
 from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
-
-from main import analysis_cache
 from pyxis.Pyxis import Analysis, Data
 
+analysis_cache = {}
 
 class BaseHandler(RequestHandler):
     def set_default_headers(self):
