@@ -307,6 +307,8 @@ class Data:
         df = self.current_df[experiments]
         imputer = MissForest()
         df_new = pd.DataFrame(imputer.fit_transform(df))
+        df_new.columns = experiments
+        df_new.index = df.index
         df_fin = df.copy()
         self.replace_missing(conditions, df_fin, df_new, experiments, missing_criteria, operator)
         operation = f"Imputed missing data from conditions where number of missing data is {missing_operator} {missing_criteria} using MissForest"
@@ -410,12 +412,14 @@ class Data:
             a.initiate_history()
             return a
 
-    def anova(self, conditions, experiments, branch=False):
+    def anova(self, selected_conditions, conditions, experiments, branch=False):
         condition_dict = {}
         for c, e in zip(conditions, experiments):
-            if c not in condition_dict:
-                condition_dict[c] = []
-            condition_dict[c].append(e)
+            if c in selected_conditions:
+                if c not in condition_dict:
+                    condition_dict[c] = []
+
+                condition_dict[c].append(e)
 
         df = self.current_df[experiments]
         for i, r in df.iterrows():
@@ -424,6 +428,8 @@ class Data:
                 samples.append(r[condition_dict[c]].dropna())
             res = f_oneway(*samples)
             df.at[i, "p-value"] = res[1]
+
+        df["Comparison"] = "-".join(selected_conditions)
 
         operation = f"Performed one way ANOVA using data from {','.join(conditions)}"
         a = Data(df=df, parent=self, operation=operation)
@@ -1149,9 +1155,9 @@ def calculate_z_score(df):
 def count_missing(row, experiments, conditions):
     data = dict()
     for i in range(len(experiments)):
+        if conditions[i] not in data:
+            data[conditions[i]] = 0
         if pd.notnull(row[experiments[i]]):
-            if conditions[i] not in data:
-                data[conditions[i]] = 0
             data[conditions[i]] += 1
     return data
 
