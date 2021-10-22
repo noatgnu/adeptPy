@@ -153,6 +153,15 @@ class AnalysisWebSocket(WebSocketHandler):
                 )
             self.write_message({"id": data["id"], "origin": "filter",
                         "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+        elif data["message"] == "Fuzzy":
+            analysis_cache[data["id"]]["analysis"].data.fuzzy_c(
+                analysis_cache[data["id"]]["analysis"].experiments,
+                analysis_cache[data["id"]]["analysis"].conditions,
+                float(data["data"])
+            )
+            self.write_message({"id": data["id"], "origin": "fuzzy",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+
     def on_close(self):
         pass
 
