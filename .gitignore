@@ -285,3 +285,4 @@ $RECYCLE.BIN/
 .idea/webResources.xml
 .idea/other.xml
 *.xml
+/static/

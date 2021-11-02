@@ -204,9 +204,12 @@ class Data:
             a.initiate_history()
             return a
 
-    def _move_time(self, node, df):
+    def _move_time(self, node, df, position=None):
         self.history.append(node)
-        self.current_df_position = self.current_df_position + 1
+        if position == None:
+            self.current_df_position = self.current_df_position + 1
+        else:
+            self.current_df_position = position
         self.current_df = df.copy()
 
     def add_columns(self, column, origin_df=None, branch=False):
@@ -342,6 +345,32 @@ class Data:
             a.initiate_history()
             return a
 
+    def impute_missing_fill(self, experiments, conditions, min_per_condition, min_condition, value=None, branch=False):
+        df = self.current_df
+        cond = []
+        for i, r in df.iterrows():
+            a = count_missing(r, experiments, conditions)
+            count_good_condition = 0
+
+            for n in a:
+                if a[n] > min_per_condition:
+                    count_good_condition += 1
+
+
+
+            if count_good_condition > min_condition:
+                cond.append(True)
+            else:
+                cond.append(False)
+        df["cond"] = pd.Series(cond, index=df.index)
+        df = df[df["cond"] == True]
+        operation = f"Removed rows with less than {min_condition} viable conditions"
+        a = Data(df=df[experiments], parent=self, operation=operation)
+        self._move_time(a, df)
+        if branch:
+            a.initiate_history()
+            return a
+
     def print_procedure(self):
         a = self.get_all_operations()
         for i, n in enumerate(reversed(a), start=1):
@@ -391,6 +420,7 @@ class Data:
                 if c in condition_dict[cd]:
                     condition_dict[cd][c].append(e)
         result = []
+        index_name = self.current_df.index.name
         for c in comparisons:
             exp = condition_dict[f"{c[0]}-{c[1]}"][c[0]] + condition_dict[f"{c[0]}-{c[1]}"][c[1]]
             df = self.current_df[exp]
@@ -400,12 +430,18 @@ class Data:
                 res = ttest_ind(a=a, b=b, equal_var=variance)
                 df.at[i, "p-value"] = res[1]
 
-            df["FC"] = df[condition_dict[f"{c[0]}-{c[1]}"][c[0]]].mean(axis=1) / df[condition_dict[f"{c[0]}-{c[1]}"][c[1]]].mean(axis=1)
+            df["FC"] = df[condition_dict[f"{c[0]}-{c[1]}"][c[1]]].mean(axis=1) / df[condition_dict[f"{c[0]}-{c[1]}"][c[0]]].mean(axis=1)
             df["log2FC"] = np.log2(np.abs(df["FC"]))
             df["Comparison"] = f"{c[0]}-{c[1]}"
             result.append(df.reset_index())
         operation = f"Performed two-sided T-test"
         df = pd.concat(result, ignore_index=True)
+        print(df)
+        print(index_name)
+        if index_name:
+            df = df[[index_name, "FC", "log2FC", "p-value", "Comparison"]]
+        else:
+            df = df[["FC", "log2FC", "p-value", "Comparison"]]
         a = Data(df=df, parent=self, operation=operation)
         self._move_time(a, df)
         if branch:
@@ -440,16 +476,17 @@ class Data:
 
     def p_correct(self, alpha, correction_method, branch=False):
         df = self.current_df
-        if "Comparisons" in df.columns:
+        if "Comparison" in df.columns:
             result = []
-            for i, g in df.groupby("Comparisons"):
+            for i, g in df.groupby("Comparison"):
                 g = g[pd.notnull(g["p-value"])]
-                a = p_correct(g["p-value"].values, alpha, correction_method)
-                g["adj.p-value"] = pd.Series(a[1], index=g.index)
+                if len(g["p-value"].values != 0):
+                    a = p_correct(g["p-value"].values, alpha, correction_method)
+                    g["adj.p-value"] = pd.Series(a[1], index=g.index)
 
-                for i2, r in g.iterrows():
-                    g.at[i2, "adj.p-value"] = r["adj.p-value"]
-                result.append(g)
+                    for i2, r in g.iterrows():
+                        g.at[i2, "adj.p-value"] = r["adj.p-value"]
+                    result.append(g)
             df = pd.concat(result, ignore_index=True)
         else:
             new_df = df.copy()
@@ -601,7 +638,7 @@ class Data:
             return a
 
     def volcano_plot(self, pvalue=0, logfc=0, text_column="", display_text=False, text_font_size=5, color_dict=None,
-                     branch=False, **kwargs):
+                     branch=False, move=True, **kwargs):
         assert "p-value" in self.current_df.columns and "log2FC" in self.current_df.columns
         log_p = 0
         if pvalue != 0:
@@ -682,14 +719,15 @@ class Data:
             ggsave(plot=self.plot, filename=kwargs["filename"], dpi=150, limitsize=False, verbose=False)
 
         operation = f"Plot volcano plot with p-value cutoff {pvalue} and logFC cutoff {logfc}"
-        a = Data(df=df, parent=self, operation=operation)
-        self._move_time(a, df)
-        if branch:
-            a.initiate_history()
-            return a
+        if move:
+            a = Data(df=df, parent=self, operation=operation)
+            self._move_time(a, df)
+            if branch:
+                a.initiate_history()
+                return a
 
     def box_plot(self, experiments=[], conditions=[], by_label=None, label_col=None, discrete_colors=None,
-                 group_col=None, branch=False, **kwargs):
+                 group_col=None, branch=False, move=True, **kwargs):
         condition_dict = {}
         reverse_dict = {}
 
@@ -744,11 +782,12 @@ class Data:
             operation = f"Boxplot created with graphs seperated by {group_col}"
         else:
             operation = f"Boxplot created"
-        a = Data(df=melted, parent=self, operation=operation)
-        self._move_time(a, melted)
-        if branch:
-            a.initiate_history()
-            return a
+        if move:
+            a = Data(df=melted, parent=self, operation=operation)
+            self._move_time(a, melted)
+            if branch:
+                a.initiate_history()
+                return a
 
     def _create_boxplot(self, by_label, discrete_colors, label_col, melted):
         if discrete_colors:
@@ -855,7 +894,7 @@ class Data:
         self.plot = box_plot
 
     def rank_plot(self, experiments, conditions, condition_1, condition_2, pvalue=0.05, logfc=0.5, text_column="",
-                  display_text=False, text_font_size=5, branch=False, discrete_colors=None, **kwargs):
+                  display_text=False, text_font_size=5, branch=False, discrete_colors=None, move=True, **kwargs):
         condition_dict = {}
         reverse_dict = {}
         pvalue_col = "p-value"
@@ -956,11 +995,12 @@ class Data:
                 ggsave(self.plot, kwargs["filename"].replace(extension, f"group_{i}.{extension}"))
 
         operation = f"Created rank plot with p-value cutoff {pvalue} and log2FC cutoff {logfc}"
-        a = Data(df=df, parent=self, operation=operation)
-        self._move_time(a, df)
-        if branch:
-            a.initiate_history()
-            return a
+        if move:
+            a = Data(df=df, parent=self, operation=operation)
+            self._move_time(a, df)
+            if branch:
+                a.initiate_history()
+                return a
 
     def go_terms_enrichment(self, target, acc_col_target, acc_col_source, methods,
                             gradients=["#998ec3", "#f7f7f7", "#f1a340"], alpha_value=0.05, branch=False, **kwargs):
@@ -1084,7 +1124,29 @@ class Data:
                     go_dict[g]["count"] += 1
                     go_dict[g]["acc"].add(r["query"])
 
-    def correlation_heatmap(self, experiments, conditions, gradients=["#998ec3", "#f7f7f7", "#f1a340"], branch=False, **kwargs):
+    def pca(self, experiments, column=True, branch=False, **kwargs):
+        pca = PCA(n_components=2)
+        a = self.current_df[experiments]
+        if column:
+            df = pca.fit_transform(a.T.values)
+            operation = f"Performed PCA analysis on columns"
+        else:
+            df = pca.fit_transform(a.values)
+            operation = f"Performed PCA analysis on rows"
+
+        df = pd.DataFrame(df, columns=["PC1", "PC2"])
+
+        if column:
+            df.index = a.columns
+        else:
+            df.index = a.index
+        a = Data(df=df, parent=self, operation=operation)
+        self._move_time(a, df)
+        if branch:
+            a.initiate_history()
+            return a
+
+    def correlation_heatmap(self, experiments, conditions, gradients=["#998ec3", "#f7f7f7", "#f1a340"], branch=False, move=True, **kwargs):
         condition_dict = {}
         df = self.current_df[experiments]
         for c, e in zip(conditions, experiments):
@@ -1117,11 +1179,12 @@ class Data:
                   )
             ggsave(se, kwargs["filename"])
         operation = f"Created correlation matrix for heatmap"
-        a = Data(df=matrix, parent=self, operation=operation)
-        self._move_time(a, matrix)
-        if branch:
-            a.initiate_history()
-            return a
+        if move:
+            a = Data(df=matrix, parent=self, operation=operation)
+            self._move_time(a, matrix)
+            if branch:
+                a.initiate_history()
+                return a
 
     def correlation_scatter(self, experiments, conditions):
         condition_dict = {}
@@ -1138,6 +1201,15 @@ class Data:
                     b = b.rename(columns={i: "x", i2: "y"})
                     a = np.corrcoef(b["x"].values, b["y"].values)
                     print(a[0, 1])
+
+    def set_df_as_current(self, position):
+        if self.current_df_position < position - 1:
+            distance = position - 1 - self.current_df_position
+            self.forward(distance)
+        elif self.current_df_position > position - 1:
+            distance = self.current_df_position - position + 1
+            self.rewind(distance)
+        self._move_time(Data(self.current_df), self.current_df, len(self.history)+1)
 
 
 def p_correct(values, alpha, method):

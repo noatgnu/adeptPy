@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import re
 
+
 class TestData(TestCase):
     def __init__(self, methodName: str = ...) -> None:
         super().__init__(methodName)
@@ -47,11 +48,11 @@ class TestData(TestCase):
         d = self.da.df[[e.name for e in self.experiments]]
         b = a.add_columns([d[e] for e in d.columns], branch=True)
 
-        #print(b.history)
+        # print(b.history)
         c = b.get_all_operations()
         print(c)
-        #assert c[-1] == "Initiated"
-        #assert c[0].startswith("Added column(s) Intensity")
+        # assert c[-1] == "Initiated"
+        # assert c[0].startswith("Added column(s) Intensity")
 
     def test_remove_rows(self):
         self.test_get_columns()
@@ -146,7 +147,7 @@ class TestData(TestCase):
 
     def test_anova(self):
         self.test_normalize_zscore()
-        self.da.anova(self.conditions, [e.name for e in self.experiments])
+        self.da.anova(self.conditions, self.conditions, [e.name for e in self.experiments])
 
     def test_correction(self):
         self.test_anova()
@@ -160,16 +161,16 @@ class TestData(TestCase):
             0.01, 0.5,
             display_text=True,
             title="A vs B",
-            #filename=r"C:\Users\toanp\OneDrive\other docs\GitHub\Pyxis\tests\AvsB.png"
+            # filename=r"C:\Users\toanp\OneDrive\other docs\GitHub\Pyxis\tests\AvsB.png"
         )
 
     def test_fuzzy_c(self):
         self.test_normalize_zscore()
         self.da.fuzzy_c([e.name for e in self.experiments],
                         self.conditions,
-                        #filename=r"C:\Users\toanp\OneDrive\other docs\GitHub\Pyxis\tests\AvsB.png"
+                        # filename=r"C:\Users\toanp\OneDrive\other docs\GitHub\Pyxis\tests\AvsB.png"
                         )
-        #self.da.plot.draw()
+        # self.da.plot.draw()
 
     def test_box_plot(self):
         self.test_normalize_zscore()
@@ -214,13 +215,15 @@ class TestData(TestCase):
 
         d.name = "ID"
         self.da.add_columns([d])
-        self.da.rank_plot([e.name for e in self.experiments], self.conditions, "A", "B", display_text=True, text_column="ID", discrete_colors=self.analysis.discrete_colors)
+        self.da.rank_plot([e.name for e in self.experiments], self.conditions, "A", "B", display_text=True,
+                          text_column="ID", discrete_colors=self.analysis.discrete_colors)
 
     def test_go_enrich(self):
         self.test_ttest()
         self.da.p_correct(0.05, "fdr_bh")
         self.da.current_df.reset_index(inplace=True)
-        self.da.go_terms_enrichment(self.da.current_df[self.da.current_df["adj.p-value"] <0.2], "Majority protein IDs", "Majority protein IDs", ["fdr_bh"], 0.1, filename="test.png")
+        self.da.go_terms_enrichment(self.da.current_df[self.da.current_df["adj.p-value"] < 0.2], "Majority protein IDs",
+                                    "Majority protein IDs", ["fdr_bh"], 0.1, filename="test.png")
 
     def test_correlation_heatmap(self):
         self.test_imput_missing_forest()
@@ -230,27 +233,28 @@ class TestData(TestCase):
         self.test_imput_missing_forest()
         self.da.correlation_scatter([e.name for e in self.experiments], self.conditions)
 
+    def test_set_df_as_current(self):
+        self.test_get_columns()
+        self.test_add_columns()
+        self.test_remove_rows()
+        self.da.impute_missing([e.name for e in self.experiments], self.conditions, 3, 1, True)
+        self.da.set_df_as_current(1)
+        self.da.print_procedure()
+
+
 class TestMetabolomics(TestCase):
     def __init__(self, methodName: str = ...) -> None:
         super().__init__(methodName)
-        self.da = Data(file_path=r"C:\Users\toanp\Downloads\ADRC metabolomics neg 092921 WD.txt", history=True)
-        pattern = re.compile("Group Area: (\w+),")
-        conditions = set()
-        for i in self.da.df.columns:
-            if i.startswith("Group Area"):
-                s = pattern.search(i)
-                if s:
-                    conditions.add(s.group(1))
+        self.da = Data(file_path=r"C:\Users\toanp\Downloads\data (36).csv", index="PG.ProteinGroups", history=True)
+        a = ["IP_RC_Hom", "IP_RC_Het", "IP_WT", "IP_Mock", "WCL_RC_Hom", "WCL_RC_Het", "WCL_RC_WT", "WCL_Mock"]
+        r = [3, 3, 3, 3, 3, 3, 3, 3]
         self.experiments = []
-        self.conds = []
-        for i in self.da.df.columns:
-            if i.startswith("Area"):
-                for s in conditions:
-                    if s.lower() in i.lower():
-                        self.experiments.append(i)
-                        self.conds.append(s)
-        self.analysis = Analysis(self.conds)
-
+        self.conditions = []
+        for i in range(len(a)):
+            for i2 in range(r[i]):
+                self.experiments.append(f"{self.conditions}.{i2 + 1}")
+                self.conditions.append(a[i])
+        self.da.current_df.columns = self.experiments
         #
         # self.experiments = []
         # experiment_dict = {}
@@ -265,9 +269,6 @@ class TestMetabolomics(TestCase):
         # self.conditions = ["A", "A", "A", "A", "B", "B", "B", "B", "C", "C", "C", "D", "D", "D", "E", "E"]
 
     def test_stuff(self):
-        self.da.impute_missing_forest(self.experiments, self.conds, ">", 0)
-        self.da.normalize(self.experiments, method="z-score")
-        self.da.two_sample("F_IP", "H_IP",  False, self.conds, self.experiments)
-        self.da.p_correct(0.01, "fdr_bh")
-        self.da.add_columns([self.da.df[a] for a in ["Name", "Formula", "Molecular Weight"]])
+        self.da.impute_missing_forest(self.experiments, self.conditions, ">", 0)
+        self.da.fuzzy_c(self.experiments, self.conditions)
         self.da.current_df.to_csv("test.csv")

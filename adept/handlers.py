@@ -43,8 +43,7 @@ class AnalysisWebSocket(WebSocketHandler):
             analysis_cache[unique_id] = {"analysis": {}, "df": pd.DataFrame(), "settings": {}}
             self.write_message({"id": unique_id, "origin": "request-id"})
         elif data["message"] == "upload-starter":
-            analysis_cache[data["id"]]["df"] = pd.read_csv(StringIO(data["data"]), sep="\t")
-
+            analysis_cache[data["id"]]["df"] = pd.read_json(StringIO(data["data"]))
             analysis_cache[data["id"]]["settings"] = json_decode(data["settings"])
             analysis_cache[data["id"]]["df"] = analysis_cache[data["id"]]["df"].set_index(
                 analysis_cache[data["id"]]["settings"]["primaryIDColumns"])
@@ -161,10 +160,14 @@ class AnalysisWebSocket(WebSocketHandler):
             )
             self.write_message({"id": data["id"], "origin": "fuzzy",
                                 "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+        elif data["message"] == "ChangeCurrentDF":
+            analysis_cache[data["id"]]["analysis"].data.set_df_as_current(int(data["data"]))
+            self.write_message({"id": data["id"], "origin": "changeCurrentDf",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
 
     def on_close(self):
         pass
 
     def check_origin(self, origin: str) -> bool:
-        if origin == "http://localhost:4200":
+        if origin == "http://localhost:4200" or origin == "http://adept.proteo.info":
             return True
