@@ -1211,6 +1211,20 @@ class Data:
             self.rewind(distance)
         self._move_time(Data(self.current_df), self.current_df, len(self.history)+1)
 
+    def delete(self, position):
+        if self.current_df_position < position - 1:
+            distance = position - 1 - self.current_df_position
+            self.forward(distance)
+        elif self.current_df_position > position - 1:
+            distance = self.current_df_position - position + 1
+            self.rewind(distance)
+        else:
+            self.current_df_position = position - 1
+            self.current_df = self.history[position-2].current_df
+
+        self.history = self.history[:position - 1]
+
+
 
 def p_correct(values, alpha, method):
     a = multipletests(values, alpha=alpha, method=method)

@@ -241,6 +241,15 @@ class TestData(TestCase):
         self.da.set_df_as_current(1)
         self.da.print_procedure()
 
+    def test_delete(self):
+        self.test_get_columns()
+        self.test_add_columns()
+        self.test_remove_rows()
+        self.da.impute_missing([e.name for e in self.experiments], self.conditions, 3, 1, True)
+        self.da.set_df_as_current(1)
+        self.da.print_procedure()
+        self.da.delete(5)
+        self.da.print_procedure()
 
 class TestMetabolomics(TestCase):
     def __init__(self, methodName: str = ...) -> None:

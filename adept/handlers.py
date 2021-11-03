@@ -165,6 +165,16 @@ class AnalysisWebSocket(WebSocketHandler):
             self.write_message({"id": data["id"], "origin": "changeCurrentDf",
                                 "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
 
+        elif data["message"] == "EndSession":
+            if data["id"] in analysis_cache:
+                del analysis_cache[data["id"]]
+
+        elif data["message"] == "DeleteNode":
+            if data["id"] in analysis_cache:
+                analysis_cache[data["id"]]["analysis"].data.delete(int(data["data"]))
+                self.write_message({"id": data["id"], "origin": "deleteNode",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+
     def on_close(self):
         pass
 
