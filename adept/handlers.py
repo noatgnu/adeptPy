@@ -39,7 +39,7 @@ class AnalysisWebSocket(WebSocketHandler):
         data = json_decode(message)
         if data["position"] != 0:
             if data["id"] in analysis_cache:
-                if data["position"] -1 < analysis_cache[data["id"]]["analysis"].data.current_df_position:
+                if data["position"] -1 <= analysis_cache[data["id"]]["analysis"].data.current_df_position:
                     analysis_cache[data["id"]]["analysis"].data.delete(data["position"])
 
         if data["message"] == "request-id":
