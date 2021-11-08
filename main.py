@@ -18,7 +18,7 @@ if __name__ == '__main__':
     tornado.options.parse_command_line()
     app = Application()
     app.add_handlers(
-        r'(localhost|127\.0\.0\.1|adept\.proteo\.info)',
+        r'(localhost|127\.0\.0\.1|adept\.proteo\.info|10\.202\.62\.27)',
         [
             (r"/", MainHandler),
             (r"/rpc", AnalysisWebSocket)
