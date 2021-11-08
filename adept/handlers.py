@@ -203,7 +203,7 @@ class AnalysisWebSocket(WebSocketHandler):
 
         elif data["message"] == "SaveAnalysis":
             if data["id"] in analysis_cache:
-                with open(os.path.join(static_loc, data["data"]), "wb") as output:
+                with open(os.path.join(static_loc, data["id"]), "wb") as output:
                     analysis_cache[data["id"]]["json"] = data["data"]
                     pickle.dump(analysis_cache[data["id"]], output)
 
