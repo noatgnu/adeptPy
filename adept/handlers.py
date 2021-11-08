@@ -199,7 +199,7 @@ class AnalysisWebSocket(WebSocketHandler):
                 with open(os.path.join(static_loc, data["data"]), "rb") as infile:
                     unique_id = str(uuid4())
                     analysis_cache[str(unique_id)] = pickle.load(infile)
-                    self.write_message({"id": data["id"], "origin": "loadSaved",
+                    self.write_message({"id": str(unique_id), "origin": "loadSaved",
                                         "data": analysis_cache[str(unique_id)]["json"]})
 
         elif data["message"] == "SaveAnalysis":
