@@ -6,9 +6,11 @@ from tornado.escape import json_decode
 from tornado.web import RequestHandler
 from tornado.websocket import WebSocketHandler
 from pyxis.Pyxis import Analysis, Data
-
+import pickle
+import os
 analysis_cache = {}
 
+static_loc = "static"
 
 class BaseHandler(RequestHandler):
     def set_default_headers(self):
@@ -188,9 +190,26 @@ class AnalysisWebSocket(WebSocketHandler):
                     analysis_cache[data["id"]]["analysis"].experiments,
                     analysis_cache[data["id"]]["analysis"].conditions,
                 )
-                print(analysis_cache[data["id"]]["analysis"].data.current_df)
+
                 self.write_message({"id": data["id"], "origin": "correlationMatrix",
                                     "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+        elif data["message"] == "LoadSaved":
+            if data["data"]:
+                with open(os.path.join(static_loc, data["data"]), "rb") as infile:
+                    unique_id = str(uuid4())
+                    analysis_cache[str(unique_id)] = pickle.load(infile)
+                    self.write_message({"id": data["id"], "origin": "loadSaved",
+                                        "data": analysis_cache[data["id"]]["json"]})
+
+        elif data["message"] == "SaveAnalysis":
+            if data["id"] in analysis_cache:
+                with open(os.path.join(static_loc, data["data"]), "wb") as output:
+                    analysis_cache[data["id"]]["json"] = data["data"]
+                    pickle.dump(analysis_cache[data["id"]], output)
+
+                    self.write_message({"id": data["id"], "origin": "saveAnalysis",
+                        "data": data["id"]})
+
 
     def on_close(self):
         pass
