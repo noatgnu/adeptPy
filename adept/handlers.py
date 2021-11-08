@@ -185,6 +185,7 @@ class AnalysisWebSocket(WebSocketHandler):
                     analysis_cache[data["id"]]["analysis"].experiments,
                     analysis_cache[data["id"]]["analysis"].conditions,
                 )
+                print(analysis_cache[data["id"]]["analysis"].data.current_df)
                 self.write_message({"id": data["id"], "origin": "correlationMatrix",
                                     "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
 
