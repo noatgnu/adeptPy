@@ -195,6 +195,7 @@ class AnalysisWebSocket(WebSocketHandler):
                                     "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
         elif data["message"] == "LoadSaved":
             if data["data"]:
+                print(data)
                 with open(os.path.join(static_loc, data["data"]), "rb") as infile:
                     unique_id = str(uuid4())
                     analysis_cache[str(unique_id)] = pickle.load(infile)
