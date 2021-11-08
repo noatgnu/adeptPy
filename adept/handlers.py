@@ -38,6 +38,11 @@ class AnalysisWebSocket(WebSocketHandler):
 
     def on_message(self, message):
         data = json_decode(message)
+        if data["position"] != 0:
+            if data["id"] in analysis_cache:
+                if data["position"] -1 != analysis_cache[data["id"]]["analysis"].data.current_df_position:
+                    analysis_cache[data["id"]]["analysis"].data.delete(data["position"])
+
         if data["message"] == "request-id":
             unique_id = str(uuid4())
             analysis_cache[unique_id] = {"analysis": {}, "df": pd.DataFrame(), "settings": {}}
@@ -174,6 +179,15 @@ class AnalysisWebSocket(WebSocketHandler):
                 analysis_cache[data["id"]]["analysis"].data.delete(int(data["data"]))
                 self.write_message({"id": data["id"], "origin": "deleteNode",
                                 "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+
+        elif data["message"] == "CorrelationMatrix":
+            if data["id"] in analysis_cache:
+                analysis_cache[data["id"]]["analysis"].data.correlation_heatmap(
+                    analysis_cache[data["id"]]["analysis"].experiments,
+                    analysis_cache[data["id"]]["analysis"].conditions,
+                )
+                self.write_message({"id": data["id"], "origin": "correlationMatrix",
+                                    "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
 
     def on_close(self):
         pass
