@@ -9,6 +9,7 @@ from pyxis.Pyxis import Analysis, Data
 
 analysis_cache = {}
 
+
 class BaseHandler(RequestHandler):
     def set_default_headers(self):
         self.set_header("access-control-allow-origin", "*")
@@ -39,7 +40,7 @@ class AnalysisWebSocket(WebSocketHandler):
         data = json_decode(message)
         if data["position"] != 0:
             if data["id"] in analysis_cache:
-                if data["position"] -1 <= analysis_cache[data["id"]]["analysis"].data.current_df_position:
+                if data["position"] - 1 <= analysis_cache[data["id"]]["analysis"].data.current_df_position:
                     analysis_cache[data["id"]]["analysis"].data.delete(data["position"])
 
         if data["message"] == "request-id":
@@ -155,7 +156,7 @@ class AnalysisWebSocket(WebSocketHandler):
                     remove,
                 )
             self.write_message({"id": data["id"], "origin": "filter",
-                        "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
         elif data["message"] == "Fuzzy":
             analysis_cache[data["id"]]["analysis"].data.fuzzy_c(
                 analysis_cache[data["id"]]["analysis"].experiments,
@@ -175,9 +176,11 @@ class AnalysisWebSocket(WebSocketHandler):
 
         elif data["message"] == "DeleteNode":
             if data["id"] in analysis_cache:
-                analysis_cache[data["id"]]["analysis"].data.delete(int(data["data"]))
-                self.write_message({"id": data["id"], "origin": "deleteNode",
-                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+                if int(data["data"]) - 1 <= analysis_cache[data["id"]]["analysis"].data.current_df_position:
+                    analysis_cache[data["id"]]["analysis"].data.delete(int(data["data"]))
+                    self.write_message({"id": data["id"], "origin": "deleteNode",
+                                        "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(
+                                            sep="\t")})
 
         elif data["message"] == "CorrelationMatrix":
             if data["id"] in analysis_cache:
