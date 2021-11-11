@@ -26,7 +26,6 @@ from missingpy import MissForest
 
 format_time = "%(asctime)s: %(message)s"
 
-
 class Experiment:
     pattern_replicate = re.compile("(\d+)$")
 
@@ -419,6 +418,9 @@ class Data:
         from rpy2.robjects import pandas2ri
 
         from rpy2.robjects.conversion import localconverter
+        lib_loc = os.environ.get("R_LIB_LOC")
+        ro.r.assign("lib_loc", lib_loc)
+        ro.r(".libPaths(lib_loc)")
         limm = importr("limma")
         tidyverse = importr("tidyverse")
 
@@ -511,8 +513,6 @@ class Data:
             result.append(df.reset_index())
         operation = f"Performed two-sided T-test"
         df = pd.concat(result, ignore_index=True)
-        print(df)
-        print(index_name)
         if index_name:
             df = df[[index_name, "FC", "log2FC", "p-value", "Comparison"]]
         else:

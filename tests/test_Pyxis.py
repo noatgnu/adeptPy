@@ -1,9 +1,11 @@
+import os
 from unittest import TestCase
 from pyxis.Pyxis import Data, Experiment, Analysis
 import pandas as pd
 import numpy as np
 import re
 
+os.environ["R_LIB_LOC"] = "C:/Users/toanp/OneDrive/other docs/adept/renv/library/R-4.0/x86_64-w64-mingw32"
 
 class TestData(TestCase):
     def __init__(self, methodName: str = ...) -> None:
@@ -256,6 +258,7 @@ class TestData(TestCase):
         self.da.normalize([e.name for e in self.experiments], method="quantile")
 
     def test_limma(self):
+
         self.test_normalize_quantile()
         self.da.limma([["A", "B"]], self.conditions, [e.name for e in self.experiments])
         self.da.current_df.to_csv("test.csv")

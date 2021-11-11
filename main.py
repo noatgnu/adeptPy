@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import tornado.httpserver
 from tornado.ioloop import IOLoop
@@ -7,7 +8,15 @@ from tornado.options import define, options
 
 from adept.handlers import MainHandler, AnalysisWebSocket
 
+if not os.environ.get("R_LIB_LOC"):
+    define("r_lib_loc", default="C:/Users/toanp/OneDrive/other docs/adept/renv/library/R-4.0/x86_64-w64-mingw32",
+           help="Location of R library")
+else:
+    define("r_lib_loc", default=os.environ.get("R_LIB_LOC"),
+           help="Location of R library")
+
 define("port", default=8000, help="Port number")
+
 
 analysis_cache = {}
 
@@ -27,6 +36,6 @@ if __name__ == '__main__':
     )
     server = tornado.httpserver.HTTPServer(app)
     server.bind(options.port)
-
+    os.environ["R_LIB_LOC"] = options.r_lib_loc
     server.start(1)
     IOLoop.current().start()
