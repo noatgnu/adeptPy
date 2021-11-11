@@ -120,6 +120,15 @@ class AnalysisWebSocket(WebSocketHandler):
             )
             self.write_message({"id": data["id"], "origin": "ttest",
                                 "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
+        elif data["message"] == "Limma":
+            comparisons = json_decode(data["data"])
+            analysis_cache[data["id"]]["analysis"].data.limma(
+                [[c["A"], c["B"]] for c in comparisons],
+                analysis_cache[data["id"]]["analysis"].conditions,
+                analysis_cache[data["id"]]["analysis"].experiments
+            )
+            self.write_message({"id": data["id"], "origin": "limma",
+                                "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
         elif data["message"] in ["bonferonni", "sidak", "holm-sidak", "holm", "simes-hochberg", "hommel", "fdr_bh",
                                  "fdr_by", "fdr_tsbh", "fdr_tsbky"]:
             analysis_cache[data["id"]]["analysis"].data.p_correct(

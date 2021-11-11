@@ -251,6 +251,15 @@ class TestData(TestCase):
         self.da.delete(5)
         self.da.print_procedure()
 
+    def test_normalize_quantile(self):
+        self.test_impute_lcm()
+        self.da.normalize([e.name for e in self.experiments], method="quantile")
+
+    def test_limma(self):
+        self.test_normalize_quantile()
+        self.da.limma([["A", "B"]], self.conditions, [e.name for e in self.experiments])
+        self.da.current_df.to_csv("test.csv")
+
 class TestMetabolomics(TestCase):
     def __init__(self, methodName: str = ...) -> None:
         super().__init__(methodName)

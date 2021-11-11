@@ -377,7 +377,7 @@ class Data:
             print(f"{i}/ {n}")
 
     def normalize(self, experiments, normalizer_mask=None, branch=False, method=None):
-        assert method in ["median", "mean", "z-score", "z-score-col"]
+        assert method in ["median", "mean", "z-score", "z-score-col", "quantile"]
         df = self.current_df[experiments]
         new_df = df.copy()
 
@@ -397,6 +397,9 @@ class Data:
                     factor = new_df.mean(axis=0)
             for e in experiments:
                 new_df[e] = new_df[e] - factor[e]
+        elif method == "quantile":
+            rank_mean = df.stack().groupby(df.rank(method='first').stack().astype(int)).mean()
+            new_df = new_df.rank(method='min').stack().astype(int).map(rank_mean).unstack()
         elif method == "z-score":
             new_df = calculate_z_score(new_df.T).T
         elif method == "z-score-col":
@@ -406,6 +409,78 @@ class Data:
         operation = f"Normalized dataset using {method}"
         a = Data(df=new_df, parent=self, operation=operation)
         self._move_time(a, new_df)
+        if branch:
+            a.initiate_history()
+            return a
+
+    def limma(self, comparisons, conditions, experiments, branch=False):
+        import rpy2.robjects as ro
+        from rpy2.robjects.packages import importr
+        from rpy2.robjects import pandas2ri
+
+        from rpy2.robjects.conversion import localconverter
+        limm = importr("limma")
+        tidyverse = importr("tidyverse")
+
+        condition_dict = {}
+        for c in comparisons:
+            condition_dict[f"{c[0]}-{c[1]}"] = {c[0]: [], c[1]: []}
+
+        for c, e in zip(conditions, experiments):
+            for cd in condition_dict:
+                if c in condition_dict[cd]:
+                    condition_dict[cd][c].append(e)
+
+        result = []
+        for c in comparisons:
+            exp = condition_dict[f"{c[0]}-{c[1]}"][c[0]] + condition_dict[f"{c[0]}-{c[1]}"][c[1]]
+            df = self.current_df[exp]
+            edf = pd.DataFrame(np.ma.filled(np.log2(np.ma.masked_equal(df, 0)), 0))
+
+            edf.index = df.index
+            edf.columns = df.columns
+            groups = []
+
+            for k in condition_dict[f"{c[0]}-{c[1]}"]:
+                for _ in condition_dict[f"{c[0]}-{c[1]}"][k]:
+                    groups.append([f"{k}"])
+
+            groups = pd.DataFrame(groups, columns=["Group"])
+            with localconverter(ro.default_converter + pandas2ri.converter):
+                rdf = ro.conversion.py2rpy(edf)
+                g = ro.conversion.py2rpy(groups)
+                ro.r.assign("rdf", rdf)
+                ro.r.assign("groupframe", g)
+                ro.r.assign("conds", c)
+                ro.r.assign("m.comp", f"{c[0]}-{c[1]}")
+                ro.r(
+                    """
+                    limma_test <- function(comparison_number, fit2, comparison_group) {
+                      limma_result <- topTable(fit2, coef = comparison_number, sort.by = "none", number = Inf)
+                      limma_result$Status[limma_result$logFC]
+                      limma_result$comparison <- comparison_group
+                      limma_result
+                    }
+                    design <- model.matrix(~ 0 + Group, groupframe)
+                    colnames(design) <- conds
+                    group_sample <- colnames(rdf)
+                    contrast_matrix <- makeContrasts(contrasts = m.comp, levels = design)
+                    fit <- lmFit(rdf, design)
+                    fit2 <- contrasts.fit(fit, contrast_matrix)
+                    fit2 <- eBayes(fit2, trend = TRUE)
+                    compare.label <- str_split(colnames(contrast_matrix)[1], "-")
+                    compare.label <- paste(compare.label[[1]][[1]], compare.label[[1]][[2]], sep="-")
+                    tt_limma <- limma_test(1, fit2, compare.label)
+                    """
+                )
+                rlimma = ro.conversion.rpy2py(ro.r("tt_limma"))
+                rlimma.index.name = "Primary IDs"
+                rlimma = rlimma.reset_index()
+                result.append(rlimma)
+        operation = f"Performed limma analysis"
+        df = pd.concat(result, ignore_index=True)
+        a = Data(df=df, parent=self, operation=operation)
+        self._move_time(a, df)
         if branch:
             a.initiate_history()
             return a
