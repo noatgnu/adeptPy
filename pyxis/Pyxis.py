@@ -480,9 +480,9 @@ class Data:
                 rlimma = rlimma.reset_index()
                 result.append(rlimma)
         operation = f"Performed limma analysis"
-        df = pd.concat(result, ignore_index=True)
-        a = Data(df=df, parent=self, operation=operation)
-        self._move_time(a, df)
+        new_df = pd.concat(result, ignore_index=True)
+        a = Data(df=new_df, parent=self, operation=operation)
+        self._move_time(a, new_df)
         if branch:
             a.initiate_history()
             return a

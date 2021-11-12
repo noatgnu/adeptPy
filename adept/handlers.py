@@ -127,6 +127,7 @@ class AnalysisWebSocket(WebSocketHandler):
                 analysis_cache[data["id"]]["analysis"].conditions,
                 analysis_cache[data["id"]]["analysis"].experiments
             )
+            print(analysis_cache[data["id"]]["analysis"].data.current_df)
             self.write_message({"id": data["id"], "origin": "limma",
                                 "data": analysis_cache[data["id"]]["analysis"].data.current_df.to_csv(sep="\t")})
         elif data["message"] in ["bonferonni", "sidak", "holm-sidak", "holm", "simes-hochberg", "hommel", "fdr_bh",
