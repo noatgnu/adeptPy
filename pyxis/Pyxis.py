@@ -462,7 +462,7 @@ class Data:
                     fit2 <- contrasts.fit(fit, contrast_matrix)
                     fit2 <- eBayes(fit2, trend = TRUE)
                     compare.label <- str_split(colnames(contrast_matrix)[1], "-")
-                    compare.label <- paste(compare.label[[1]][[1]], compare.label[[1]][[2]], sep="-")
+                    compare.label <- paste(compare.label[[1]][[2]], compare.label[[1]][[1]], sep="-")
                     tt_limma <- limma_test(1, fit2, compare.label)
                     """
                 )
