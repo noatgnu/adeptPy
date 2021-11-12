@@ -460,7 +460,7 @@ class Data:
                     limma_test <- function(comparison_number, fit2, comparison_group) {
                       limma_result <- topTable(fit2, coef = comparison_number, sort.by = "none", number = Inf)
                       limma_result$Status[limma_result$logFC]
-                      limma_result$comparison <- comparison_group
+                      limma_result$Comparison <- comparison_group
                       limma_result
                     }
                     design <- model.matrix(~ 0 + Group, groupframe)
@@ -481,6 +481,7 @@ class Data:
                 result.append(rlimma)
         operation = f"Performed limma analysis"
         new_df = pd.concat(result, ignore_index=True)
+        new_df = new_df.rename(columns={"P.Value": "p-value", "adj.P.Val": "adj.p-value", "logFC": "log2FC"})
         a = Data(df=new_df, parent=self, operation=operation)
         self._move_time(a, new_df)
         if branch:
