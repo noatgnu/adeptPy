@@ -413,20 +413,11 @@ class Data:
             return a
 
     def limma(self, comparisons, conditions, experiments, branch=False):
-        import rpy2.robjects as ro
-        from rpy2.robjects.packages import importr
-        from rpy2.robjects import pandas2ri
-
-        from rpy2.robjects.conversion import localconverter
-        lib_loc = os.environ.get("R_LIB_LOC")
-        ro.r.assign("lib_loc", lib_loc)
-        ro.r(".libPaths(lib_loc)")
-        limm = importr("limma")
-        tidyverse = importr("tidyverse")
+        localconverter, pandas2ri, ro = self.priming_R(["limma", "tidyverse"])
 
         condition_dict = {}
         for c in comparisons:
-            condition_dict[f"{c[0]}-{c[1]}"] = {c[0]: [], c[1]: []}
+            condition_dict[f"{c[0]}-{c[1]}"] = {c[1]: [], c[0]: []}
 
         for c, e in zip(conditions, experiments):
             for cd in condition_dict:
@@ -435,7 +426,7 @@ class Data:
 
         result = []
         for c in comparisons:
-            exp = condition_dict[f"{c[0]}-{c[1]}"][c[0]] + condition_dict[f"{c[0]}-{c[1]}"][c[1]]
+            exp = condition_dict[f"{c[0]}-{c[1]}"][c[1]] + condition_dict[f"{c[0]}-{c[1]}"][c[0]]
             df = self.current_df[exp]
             edf = pd.DataFrame(np.ma.filled(np.log2(np.ma.masked_equal(df, 0)), 0))
 
@@ -454,7 +445,7 @@ class Data:
                 ro.r.assign("rdf", rdf)
                 ro.r.assign("groupframe", g)
                 ro.r.assign("conds", c)
-                ro.r.assign("m.comp", f"{c[0]}-{c[1]}")
+                ro.r.assign("m.comp", f"{c[1]}-{c[0]}")
                 ro.r(
                     """
                     limma_test <- function(comparison_number, fit2, comparison_group) {
@@ -487,6 +478,18 @@ class Data:
         if branch:
             a.initiate_history()
             return a
+
+    def priming_R(self, libraries):
+        import rpy2.robjects as ro
+        from rpy2.robjects.packages import importr
+        from rpy2.robjects import pandas2ri
+        from rpy2.robjects.conversion import localconverter
+        lib_loc = os.environ.get("R_LIB_LOC")
+        ro.r.assign("lib_loc", lib_loc)
+        ro.r(".libPaths(lib_loc)")
+        for i in libraries:
+            importr(i)
+        return localconverter, pandas2ri, ro
 
     def two_sample(self, comparisons, variance, conditions, experiments, branch=False):
         condition_dict = {}
@@ -1299,8 +1302,6 @@ class Data:
             self.current_df = self.history[position-2].current_df
 
         self.history = self.history[:position - 1]
-
-
 
 def p_correct(values, alpha, method):
     a = multipletests(values, alpha=alpha, method=method)
