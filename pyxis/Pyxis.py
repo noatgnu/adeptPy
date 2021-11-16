@@ -18,6 +18,8 @@ import skfuzzy as fuzz
 from statsmodels.stats.multitest import multipletests
 import random
 
+from Bio.UniProt.GOA import gafbyproteiniterator
+
 from uniprot.parser import UniprotSequence, UniprotParser
 
 sys.modules['sklearn.neighbors.base'] = sklearn.neighbors._base
@@ -1348,6 +1350,10 @@ def greater_and_equal(source_df, target):
 def random_color():
     color = "#" + ''.join([random.choice('0123456789ABCDEF') for j in range(6)])
     return color
+
+def get_gaf(organism):
+    df = pd.read_csv(r"C:\Users\toanp\PycharmProjects\adept\gaf.list.txt", sep="\t")
+    df = df[(df["Species/Database"] == organism) & (df["Entity type"] == "protein")]
 
 
 operator_dict = {
